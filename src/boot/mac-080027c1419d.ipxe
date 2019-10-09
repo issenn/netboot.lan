@@ -2,6 +2,7 @@
 
 echo
 set hostname mini
+set base-lun 1
 set initiator-iqn ${base-iqn}:${hostname}
 echo Booting ${hostname}
 set level-one-menu-default esxi

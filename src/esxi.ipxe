@@ -34,8 +34,8 @@ echo Starting ESXi ${osversion} installer for ${initiator-iqn}
 set root-path ${base-iscsi}:${hostname}.ESXi
 set base-url ${sanboot-url}/VMWare/ESXi
 set keep-san 1
-sanhook --drive 0x80 ${root-path} || goto failed
-sanboot --no-describe --drive 0x81 ${base-url}/VMware-VMvisor-Installer-6.7.0.update03-14320388.x86_64.iso
+sanhook --drive 0x80 ${root-path} || goto error
+sanboot --no-describe --drive 0x81 ${base-url}/VMware-VMvisor-Installer-${osversion}.x86_64.iso
 goto back
 
 :back
