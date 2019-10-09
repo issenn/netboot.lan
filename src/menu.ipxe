@@ -1,0 +1,131 @@
+#!ipxe
+
+# Variables are specified in boot.cfg
+
+iseq ${cls} serial && goto ignore_cls ||
+set cls:hex 1b:5b:4a  # ANSI clear screen sequence - "^[[J"
+set cls ${cls:string}
+:ignore_cls
+
+# Some menu defaults
+# set level-one-menu-timeout 0 if no client-specific settings found
+isset ${level-one-menu-timeout} || set level-one-menu-timeout 0
+isset ${level-two-menu-timeout} || set level-two-menu-timeout ${level-one-menu-timeout}
+isset ${level-one-menu-default} || set level-one-menu-default exit
+
+# Figure out if client is 64-bit capable
+# Check if CPU supports 64-bit operation ("long mode")
+isset ${arch} && goto skip_arch_detect ||
+# cpuid --ext 29 && set arch x86_64 || set arch i386
+cpuid --ext 29 && set arch x64 || set arch x86
+cpuid --ext 29 && set archl amd64 || set archl i386
+iseq ${buildarch} arm64 && set arch arm64 ||
+:skip_arch_detect
+isset ${menu} && goto ${menu} ||
+
+# Check if CPU supports hardware virtualisation
+cpuid --ecx 5 && set vmx yes ||
+cpuid --ext --ecx 2 && set svm yes ||
+isset ${vmx} || isset ${svm} && set hw_virt yes ||
+
+isset ${ip} || dhcp || echo DHCP failed
+
+###################### MAIN MENU ####################################
+
+:main_menu
+clear menu
+clear selected
+set space:hex 20:20
+set space ${space:string}
+menu iPXE boot menu for ${initiator-iqn} | ${site_name}
+item --gap --               ------------------------- Default ----------------------------------------
+# item         local          ${space} Boot from local hdd
+item --gap --               ------------------------- Operating systems ------------------------------
+# item --key w windows10      ${space} Boot Windows10 from iSCSI
+# item --key w windows7       ${space} Boot Windows7 from iSCSI
+# item --key u ubuntu         ${space} Boot Ubuntu from iSCSI
+# item --key u centos         ${space} Boot CentOS from iSCSI
+# item --key u esxi           ${space} Boot ESXi from iSCSI
+item --gap --               ------------------------- Tools and utilities ----------------------------
+# item --key d menu-diag      ${space} System tools...
+item --key i menu_install   ${space} Installers...
+item         nbxyz          ${space} Chain load netboot.xyz
+item --gap --               ------------------------- Signature Checks -------------------------------
+# item         sig_check      ${space} netboot.lan [ enabled: ${sigs_enabled} ]
+# item         img_sigs_check ${space} Images [ enabled: ${img_sigs_enabled} ]
+item --gap --               ------------------------- Advanced options -------------------------------
+# item --key c config         ${space} Configure settings
+item shell                  ${space} Drop to iPXE shell
+item reboot                 ${space} Reboot computer
+item
+item --key x exit           ${space} Exit iPXE and continue BIOS boot
+choose --timeout ${level-one-menu-timeout} --default ${level-one-menu-default} selected || goto error
+set level-one-menu-timeout 0
+echo ${cls}
+goto ${selected} ||
+iseq ${sigs_enabled} true && goto verify_sigs || goto change_menu
+
+:verify_sigs
+imgverify ${selected}.ipxe ${sigs}${selected}.ipxe.sig || goto error
+goto change_menu
+
+:change_menu
+chain ${selected}.ipxe || goto error
+goto main_menu
+
+:cancel
+echo You cancelled the menu, dropping you to a shell
+
+:failed
+echo Booting failed, dropping to shell
+goto shell
+
+:error
+echo Error occured, press any key to return to menu ...
+prompt
+set level-one-menu-timeout 0
+set level-two-menu-timeout 0
+set level-three-menu-timeout 0
+set level-four-menu-timeout 0
+set level-one-menu-default exit
+clear level-two-menu-default
+clear level-three-menu-default
+clear osversion
+clear selected
+goto main_menu
+
+:shell
+echo Type 'exit' to get the back to the menu.
+shell
+set level-one-menu-timeout 0
+set level-two-menu-timeout 0
+set level-one-menu-default exit
+clear level-two-menu-default
+goto main_menu
+
+:local
+echo Booting from local disks ...
+exit 0
+
+:reboot
+reboot
+
+:exit
+exit 0
+
+:config
+config
+goto main_menu
+
+:sig_check
+iseq ${sigs_enabled} true && set sigs_enabled false || set sigs_enabled true
+goto main_menu
+
+:img_sigs_check
+iseq ${img_sigs_enabled} true && set img_sigs_enabled false || set img_sigs_enabled true
+goto main_menu
+
+:nbxyz
+echo Loading from http://boot.netboot.xyz/
+chain --autofree http://boot.netboot.xyz/ || goto error
+goto main_menu

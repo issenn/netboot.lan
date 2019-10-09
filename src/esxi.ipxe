@@ -1,0 +1,46 @@
+#!ipxe
+
+goto ${selected} ||
+
+:esxi
+clear menu
+clear selected
+set os ESXi
+menu ${os} - ${arch} - installer for ${initiator-iqn}
+item 6.7.0-8169922           ${os} 6.7.0-8169922
+item 6.7.0.update03-14320388 ${os} 6.7.0.update03-14320388
+item other                   ${os} Choose other version [o]
+item
+item back                    Back to previous menu...
+iseq ${level-three-menu-default} esxi && isset ${osversion} && goto menu-install-timed ||
+choose selected || goto back
+set level-four-menu-timeout 0
+set osversion ${selected}
+echo ${cls}
+iseq ${osversion} other || goto scientific_skip_read_osversion
+echo -n Enter version: ${} && read osversion
+:scientific_skip_read_osversion
+goto bootos_images
+
+:menu-install-timed
+choose --timeout ${level-four-menu-timeout} --default ${osversion} selected || goto back
+set level-four-menu-timeout 0
+echo ${cls}
+goto bootos_images
+
+:bootos_images
+imgfree
+echo Starting ESXi ${osversion} installer for ${initiator-iqn}
+set root-path ${base-iscsi}:${hostname}.ESXi
+set base-url ${sanboot-url}/VMWare/ESXi
+set keep-san 1
+sanhook --drive 0x80 ${root-path} || goto failed
+sanboot --no-describe --drive 0x81 ${base-url}/VMware-VMvisor-Installer-6.7.0.update03-14320388.x86_64.iso
+goto back
+
+:back
+set level-four-menu-timeout 0
+clear osversion
+clear selected
+clear menu
+exit 0
