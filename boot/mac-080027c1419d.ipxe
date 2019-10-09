@@ -1,0 +1,9 @@
+#!ipxe
+
+echo
+set hostname mini
+set initiator-iqn ${base-iqn}:${hostname}
+echo Booting ${hostname}
+set level-one-menu-default esxi
+set level-one-menu-timeout 0
+chain --replace --autofree ${menu-url}

@@ -1,0 +1,40 @@
+#!ipxe
+
+goto ${selected} ||
+
+:vm_menu
+clear menu
+clear selected
+menu Virtualization Installers for ${initiator-iqn}
+                       item --gap --               ------------------------- Popular Linux Operating Systems ----------------
+iseq ${menu_esxi} 1 && item esxi                   ${space} ESXi
+                       item
+                       item back                   Back to previous menu...
+iseq ${level-two-menu-default} vm && isset ${level-three-menu-default} && goto menu-install-timed ||
+choose selected || goto back
+set level-three-menu-timeout 0
+echo ${cls}
+goto ${selected} ||
+iseq ${sigs_enabled} true && goto verify_sigs || goto change_menu
+
+:menu-install-timed
+choose --timeout ${level-three-menu-timeout} --default ${level-three-menu-default} selected || goto back
+set level-three-menu-timeout 0
+echo ${cls}
+goto ${selected} ||
+iseq ${sigs_enabled} true && goto verify_sigs || goto change_menu
+
+:verify_sigs
+imgverify ${selected}.ipxe ${sigs}${selected}.ipxe.sig || goto error
+goto change_menu
+
+:change_menu
+chain ${selected}.ipxe || goto error
+goto linux_menu
+
+:back
+set level-three-menu-timeout 0
+clear level-three-menu-default
+clear selected
+clear menu
+exit 0

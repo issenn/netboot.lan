@@ -1,0 +1,41 @@
+#!ipxe
+
+goto ${selected} ||
+
+:install_menu
+clear menu
+clear selected
+menu Installers for ${initiator-iqn}
+                        item --gap --               ------------------------- Distributions ----------------------------------
+iseq ${menu_linux} 1 && item linux                  ${space} Linux Installs ||
+iseq ${menu_vm} 1    && item vm                     ${space} Virtualization Installs ||
+                        item
+                        item back                   Back to previous menu...
+iseq ${level-one-menu-default} menu_install && isset ${level-two-menu-default} && goto menu-install-timed ||
+choose selected || goto back
+set level-two-menu-timeout 0
+echo ${cls}
+goto ${selected} ||
+iseq ${sigs_enabled} true && goto verify_sigs || goto change_menu
+
+:menu-install-timed
+choose --timeout ${level-two-menu-timeout} --default ${level-two-menu-default} selected || goto back
+set level-two-menu-timeout 0
+echo ${cls}
+goto ${selected} ||
+iseq ${sigs_enabled} true && goto verify_sigs || goto change_menu
+
+:verify_sigs
+imgverify ${selected}.ipxe ${sigs}${selected}.ipxe.sig || goto error
+goto change_menu
+
+:change_menu
+chain ${selected}.ipxe || goto error
+goto install_menu
+
+:back
+set level-two-menu-timeout 0
+clear level-two-menu-default
+clear selected
+clear menu
+exit 0
