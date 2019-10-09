@@ -1,0 +1,165 @@
+
+############ MAIN MENU ITEMS ############
+
+:windows10
+echo Booting Windows10 from iSCSI for ${initiator-iqn}
+#set netX/gateway ${iscsi-server}
+set root-path ${base-iscsi}:${hostname}.Windows10
+#set keep-san 1
+sanboot ${root-path} || goto failed
+goto main_menu
+
+:windows7
+echo Booting Windows7 from iSCSI for ${initiator-iqn}
+#ifconf --configurator dhcp net1
+#ifclose net0
+#set netX/gateway 0.0.0.0
+set root-path ${base-iscsi}:${hostname}.Windows7
+#set keep-san 1
+sanboot ${root-path} || goto failed
+goto main_menu
+
+:ubuntu
+echo Booting Ubuntu from iSCSI for ${initiator-iqn}
+set root-path ${base-iscsi}:${hostname}.Ubuntu
+set keep-san 1
+sanboot ${root-path} || goto failed
+goto main_menu
+
+:centos
+echo Booting CentOS from iSCSI for ${initiator-iqn}
+set root-path ${base-iscsi}:${hostname}.CentOS7
+set keep-san 1
+sanboot ${root-path} || goto failed
+goto main_menu
+
+:esxi
+echo Booting ESXi from iSCSI for ${initiator-iqn}
+set root-path ${base-iscsi}:${hostname}.ESXi
+set keep-san 1
+sanboot ${root-path} || goto failed
+goto main_menu
+
+###################### SYSTEM TOOL MENU #############################
+
+:menu-diag
+menu Diagnostic tools
+item memtest       Memtest86+
+item winpe         WinPE
+item
+item --key 0x08 back Back to top menu...
+iseq ${menu-default} menu-diag && isset ${submenu-default} && goto menu-diag-timed ||
+choose selected && goto ${selected} || goto main_menu
+:menu-diag-timed
+choose --timeout ${submenu-timeout} --default ${submenu-default} selected && goto ${selected} || goto start
+
+:memtest
+initrd ${tools-url}/memtest86_5.01.iso
+chain memdisk iso raw || goto failed
+goto main_menu
+
+:winpe
+initrd ${tools-url}/UQi_USBsys_10th.iso
+chain memdisk iso raw || goto failed
+goto main_menu
+
+############################ INSTALLER MENU #########################
+
+:menu-install
+menu Installers for ${initiator-iqn}
+item winpe-install        Hook Windows iSCSI and boot WinPE for intallation
+item win10-install        Hook Windows10 ${archl} iSCSI and install
+item win7-install         Hook Windows7 ${archl} iSCSI and install
+item ubuntu-install       Hook Ubuntu ${archl} iSCSI and install
+item centos-install       Hook CentOS ${archl} iSCSI and install
+item esxi-install         Hook ESXi ${archl} iSCSI and install
+item
+item --key 0x08 back      Back to top menu...
+iseq ${menu-default} menu-install && isset ${submenu-default} && goto menu-install-timed ||
+choose selected && goto ${selected} || goto main_menu
+:menu-install-timed
+choose --timeout ${submenu-timeout} --default ${submenu-default} selected && goto ${selected} || goto start
+
+:winpe-install
+echo Booting Windows ${arch} installer for ${initiator-iqn}
+echo (for installing Windows)
+set netX/gateway ${iscsi-server}
+set root-path ${base-iscsi}:${hostname}.Windows7
+set keep-san 1
+echo sanhook start...
+sanhook ${root-path} || goto failed
+echo set base url starting
+set base-url http://${nas_ip}:88/Install/WinPE
+kernel wimboot
+initrd ${base-url}/x64/Boot/BCD bcd
+initrd ${base-url}/x64/Boot/boot.sdi boot.sdi
+initrd ${base-url}/x64/sources/boot.wim boot.wim
+boot || goto failed
+goto main_menu
+
+:win10-install
+echo Booting Windows10 ${arch} installer for ${initiator-iqn}
+echo (for installing Windows)
+set netX/gateway ${iscsi-server}
+set root-path ${base-iscsi}:${hostname}.Windows10
+set keep-san 1
+echo sanhook start...
+sanhook ${root-path} || goto failed
+echo set base url starting
+set base-url ${sanboot-url}/Windows10/${arch}
+kernel wimboot
+initrd ${base-url}/boot/bcd bcd
+initrd ${base-url}/boot/boot.sdi boot.sdi
+initrd ${base-url}/sources/boot.wim boot.wim
+boot || goto failed
+goto main_menu
+
+:win7-install
+echo Booting Windows7 ${arch} installer for ${initiator-iqn}
+echo (for installing Windows)
+set netX/gateway ${iscsi-server}
+set root-path ${base-iscsi}:${hostname}.Windows7
+set keep-san 1
+echo sanhook start...
+sanhook --drive 0x80 ${root-path} || goto failed
+echo set base url starting
+set base-url ${sanboot-url}/Windows7/${arch}
+kernel wimboot
+initrd ${base-url}/bootmgr bootmgr
+initrd ${base-url}/boot/bcd bcd
+initrd ${base-url}/boot/boot.sdi boot.sdi
+initrd ${base-url}/sources/boot.wim boot.wim
+imgstat
+boot || goto failed
+goto main_menu
+
+:ubuntu-install
+echo Starting Ubuntu 16.04 ${arch} installer for ${initiator-iqn}
+set root-path ${base-iscsi}:${hostname}.Ubuntu
+cpuid --ext 29 && set arch amd64 || set arch x86
+set base-url ${sanboot-url}/Ubuntu16/${arch}
+kernel ${base-url}/netboot/linux
+initrd ${base-url}/netboot/initrd.gz
+imgargs linux auto=true fb=false url=${base-url}/./preseed.cfg DEBCONF_DEBUG=5 netcfg/get_hostname=${hostname}.Ubuntu partman-iscsi/login/address=${iscsi-server} partman-iscsi/login/targets=${base-iqn}:${hostname}.Ubuntu
+boot || goto failed
+goto main_menu
+
+:centos-install
+echo Starting CentOS 7 ${arch} installer for ${initiator-iqn}
+set root-path ${base-iscsi}:${hostname}.CentOS7
+set base-url ${sanboot-url}/CentOS7/x64
+set keep-san 1
+sanhook ${root-path} || goto failed
+kernel ${base-url}/images/pxeboot/vmlinuz initrd=initrd.img repo=${base-url}
+initrd ${base-url}/images/pxeboot/initrd.img
+boot || goto failed
+goto main_menu
+
+:esxi-install
+echo Starting ESXi 6.7 installer for ${initiator-iqn}
+set root-path ${base-iscsi}:${hostname}.ESXi
+set base-url ${sanboot-url}/VMWare/ESXi
+set keep-san 1
+sanhook --drive 0x80 ${root-path} || goto failed
+sanboot --no-describe --drive 0x81 ${base-url}/VMware-VMvisor-Installer-6.7.0.update03-14320388.x86_64.iso
+goto main_menu

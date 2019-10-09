@@ -45,7 +45,7 @@ item --gap --               ------------------------- Operating systems --------
 # item --key w windows7       ${space} Boot Windows7 from iSCSI
 # item --key u ubuntu         ${space} Boot Ubuntu from iSCSI
 # item --key u centos         ${space} Boot CentOS from iSCSI
-# item --key u esxi           ${space} Boot ESXi from iSCSI
+item --key u esxi           ${space} Boot ESXi from iSCSI
 item --gap --               ------------------------- Tools and utilities ----------------------------
 # item --key d menu-diag      ${space} System tools...
 item --key i menu_install   ${space} Installers...
@@ -128,4 +128,14 @@ goto main_menu
 :nbxyz
 echo Loading from http://boot.netboot.xyz/
 chain --autofree http://boot.netboot.xyz/ || goto error
+goto main_menu
+
+
+############ MAIN MENU ITEMS ############
+
+:esxi
+echo Booting ESXi from iSCSI for ${initiator-iqn}
+set root-path ${base-iscsi}:${hostname}.ESXi
+set keep-san 1
+sanboot ${root-path} || goto failed
 goto main_menu
