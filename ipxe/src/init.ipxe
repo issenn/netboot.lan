@@ -30,7 +30,7 @@ echo -n Please enter tftp server: && read next-server && goto setdefaultnetboot 
 
 :setdefaultnetboot
 initrd tftp://${next-server}/default.ipxe && set default-url tftp://${next-server} && goto netboot ||
-initrd tftp://${next-server}/PXE/Grub/default.ipxe && set default-url tftp://${next-server}/PXE/Grub && goto netboot ||
+initrd tftp://${next-server}/PXE/Grub/ipxe/default.ipxe && set default-url tftp://${next-server}/PXE/Grub/ipxe && goto netboot ||
 prompt --key s --timeout 10000 Initrdloading failed, hit 's' for the iPXE shell; reboot in 10 seconds && shell || reboot
 
 :netboot
